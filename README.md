@@ -20,16 +20,31 @@ A GitHub Action to install and configure [`quantum-cli`](https://cli.planetary-q
 
 ## Inputs
 
-| Input | Required | Description |
-|-------|----------|-------------|
-| `username` | Yes | Your Quantum username |
-| `password` | Yes | Your Quantum password |
+You must provide **either** `api-key` **or** both `username` and `password`. You cannot use both methods together.
+
+| Input | Description |
+|-------|-------------|
+| `api-key` | Your Quantum API key (recommended) |
+| `username` | Your Quantum username (**deprecated**, use `api-key` instead) |
+| `password` | Your Quantum password (**deprecated**, use `api-key` instead) |
 
 ## Usage
 
 For detailed documentation on the `quantum-cli`, please refer to our [docs](https://docs.planetary-quantum.com/).
 
-### Basic example
+### Using API key (recommended)
+
+```yaml
+steps:
+  - uses: hostwithquantum/setup-quantum-cli@main
+    with:
+      api-key: ${{ secrets.QUANTUM_API_KEY }}
+  - run: quantum-cli auth status
+```
+
+### Using username/password (deprecated)
+
+> **Warning**: username/password authentication is deprecated. Please migrate to `api-key`.
 
 ```yaml
 steps:
@@ -37,8 +52,7 @@ steps:
     with:
       username: ${{ secrets.QUANTUM_USERNAME }}
       password: ${{ secrets.QUANTUM_PASSWORD }}
-
-  - run: quantum-cli validate
+  - run: quantum-cli auth status
 ```
 
 ### Full workflow example
@@ -57,13 +71,12 @@ jobs:
       - uses: actions/checkout@v6
       - uses: hostwithquantum/setup-quantum-cli@main
         with:
-          username: ${{ secrets.QUANTUM_USERNAME }}
-          password: ${{ secrets.QUANTUM_PASSWORD }}
+          api-key: ${{ secrets.QUANTUM_API_KEY }}
       - run: quantum-cli auth status
       - run: quantum-cli stack deploy
         env:
           QUANTUM_ENDPOINT: my-cluster
-          QUANTUM_SATCK: my-app
+          QUANTUM_STACK: my-app
 ```
 
 ### Windows example
@@ -76,8 +89,7 @@ jobs:
       - uses: actions/checkout@v6
       - uses: hostwithquantum/setup-quantum-cli@main
         with:
-          username: ${{ secrets.QUANTUM_USERNAME }}
-          password: ${{ secrets.QUANTUM_PASSWORD }}
+          api-key: ${{ secrets.QUANTUM_API_KEY }}
       - run: quantum-cli.exe auth status
 ```
 
@@ -85,6 +97,10 @@ jobs:
 
 The action sets the following environment variables for subsequent steps:
 
+When using API key:
+- `QUANTUM_API_KEY` — your API key
+
+When using username/password (deprecated):
 - `QUANTUM_USER` — your username
 - `QUANTUM_PASSWORD` — your password
 
