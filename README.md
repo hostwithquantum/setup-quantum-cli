@@ -36,7 +36,7 @@ For detailed documentation on the `quantum-cli`, please refer to our [docs](http
 
 ```yaml
 steps:
-  - uses: hostwithquantum/setup-quantum-cli@main
+  - uses: hostwithquantum/setup-quantum-cli@v1
     with:
       api-key: ${{ secrets.QUANTUM_API_KEY }}
   - run: quantum-cli auth status
@@ -48,7 +48,7 @@ steps:
 
 ```yaml
 steps:
-  - uses: hostwithquantum/setup-quantum-cli@main
+  - uses: hostwithquantum/setup-quantum-cli@v1
     with:
       username: ${{ secrets.QUANTUM_USERNAME }}
       password: ${{ secrets.QUANTUM_PASSWORD }}
@@ -69,7 +69,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: hostwithquantum/setup-quantum-cli@main
+      - uses: hostwithquantum/setup-quantum-cli@v1
         with:
           api-key: ${{ secrets.QUANTUM_API_KEY }}
       - run: quantum-cli auth status
@@ -87,7 +87,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: hostwithquantum/setup-quantum-cli@main
+      - uses: hostwithquantum/setup-quantum-cli@v1
         with:
           api-key: ${{ secrets.QUANTUM_API_KEY }}
       - run: quantum-cli.exe auth status
