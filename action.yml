@@ -5,14 +5,39 @@ branding:
   color: 'red'
 inputs:
   username:
-    required: true
-    description: username
+    required: false
+    description: Your Quantum username (required if not using api-key)
   password:
-    required: true
-    description: password
+    required: false
+    description: Your Quantum password (required if not using api-key)
+  api-key:
+    required: false
+    description: Your Quantum API key (alternative to username/password)
 runs:
   using: "composite"
   steps:
+  - name: validate inputs
+    run: |
+      HAS_USERNAME="${{ inputs.username != '' }}"
+      HAS_PASSWORD="${{ inputs.password != '' }}"
+      HAS_API_KEY="${{ inputs.api-key != '' }}"
+
+      if [ "$HAS_API_KEY" = "true" ]; then
+        if [ "$HAS_USERNAME" = "true" ] || [ "$HAS_PASSWORD" = "true" ]; then
+          echo "::error title=Invalid inputs::Cannot use api-key together with username/password. Use either api-key OR username+password."
+          exit 1
+        fi
+      else
+        if [ "$HAS_USERNAME" != "true" ] || [ "$HAS_PASSWORD" != "true" ]; then
+          echo "::error title=Missing credentials::Must provide either api-key OR both username and password."
+          exit 1
+        fi
+      fi
+    shell: bash
+  - name: deprecation warning (username/password)
+    if: inputs.api-key == ''
+    run: echo "::warning title=Deprecated::username/password authentication is deprecated. Please migrate to api-key."
+    shell: bash
   - name: install quantum-cli (Linux)
     if: runner.os == 'Linux'
     run: |
@@ -68,7 +93,13 @@ runs:
     if: runner.os == 'Windows'
     run: quantum-cli.exe -v
     shell: pwsh
-  - run: echo "QUANTUM_USER=${{ inputs.username }}" >> "$GITHUB_ENV"
+  - name: set credentials (username/password)
+    if: inputs.api-key == ''
+    run: |
+      echo "QUANTUM_USER=${{ inputs.username }}" >> "$GITHUB_ENV"
+      echo "QUANTUM_PASSWORD=${{ inputs.password }}" >> "$GITHUB_ENV"
     shell: bash
-  - run: echo "QUANTUM_PASSWORD=${{ inputs.password }}" >> "$GITHUB_ENV"
+  - name: set credentials (api-key)
+    if: inputs.api-key != ''
+    run: echo "QUANTUM_API_KEY=${{ inputs.api-key }}" >> "$GITHUB_ENV"
     shell: bash
