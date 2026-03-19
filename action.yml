@@ -10,25 +10,64 @@ inputs:
   password:
     required: true
     description: password
-  version:
-    required: true
-    description: version
-    default: '2.8.4'
 runs:
   using: "composite"
   steps:
-  - name: install quantum-cli
+  - name: install quantum-cli (Linux)
+    if: runner.os == 'Linux'
     run: |
+      if [ "${{ runner.arch }}" = "ARM64" ]; then
+        ARCH="arm64"
+      else
+        ARCH="amd64"
+      fi
       curl \
         -H 'Cache-Control: no-cache' \
-        "https://cli.planetary-quantum.com/quantum-cli-linux-amd64?v=${{ inputs.version }}" \
+        "https://cli.planetary-quantum.com/quantum-cli-linux-${ARCH}?v=$RANDOM" \
         -o ${{ github.action_path }}/quantum-cli \
         && chmod +x ${{ github.action_path }}/quantum-cli
     shell: bash
-  - run: echo "${{ github.action_path }}" >> $GITHUB_PATH
+  - name: install quantum-cli (macOS)
+    if: runner.os == 'macOS'
+    run: |
+      if [ "${{ runner.arch }}" = "ARM64" ]; then
+        ARCH="arm64"
+      else
+        ARCH="amd64"
+      fi
+      curl \
+        -H 'Cache-Control: no-cache' \
+        "https://cli.planetary-quantum.com/quantum-cli-darwin-${ARCH}?v=$RANDOM" \
+        -o ${{ github.action_path }}/quantum-cli \
+        && chmod +x ${{ github.action_path }}/quantum-cli
     shell: bash
-  - run: quantum-cli -v
+  - name: install quantum-cli (Windows)
+    if: runner.os == 'Windows'
+    run: |
+      if ("${{ runner.arch }}" -eq "ARM64") {
+        $arch = "arm64"
+      } else {
+        $arch = "amd64"
+      }
+      $url = "https://cli.planetary-quantum.com/quantum-cli-windows-${arch}.exe?v=$(Get-Random)"
+      Invoke-WebRequest -Uri $url -OutFile "${{ github.action_path }}\quantum-cli.exe"
+    shell: pwsh
+  - name: add to PATH (Linux/macOS)
+    if: runner.os != 'Windows'
+    run: echo "${{ github.action_path }}" >> $GITHUB_PATH
     shell: bash
+  - name: add to PATH (Windows)
+    if: runner.os == 'Windows'
+    run: echo "${{ github.action_path }}" | Out-File -FilePath $env:GITHUB_PATH -Append
+    shell: pwsh
+  - name: verify installation (Linux/macOS)
+    if: runner.os != 'Windows'
+    run: quantum-cli -v
+    shell: bash
+  - name: verify installation (Windows)
+    if: runner.os == 'Windows'
+    run: quantum-cli.exe -v
+    shell: pwsh
   - run: echo "QUANTUM_USER=${{ inputs.username }}" >> "$GITHUB_ENV"
     shell: bash
   - run: echo "QUANTUM_PASSWORD=${{ inputs.password }}" >> "$GITHUB_ENV"
