@@ -8,3 +8,5 @@ updates:
       action-deps:
         patterns:
           - "*"
+    cooldown:
+      default-days: 7
