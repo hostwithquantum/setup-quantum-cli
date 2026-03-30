@@ -24,8 +24,9 @@ You should provide an `api-key`, but it's optional.
 
 | Input | Description |  |
 |-------|-------------|----------|
-| `api-key` | Your Quantum API key | optional |
+| `api-key` | Your Quantum API key | optional, adds the key to the environment |
 | `version` | The version | optional, defaults to latest |
+| `enable-cache` | Cache quantum-cli endpoint data between runs | optional, defaults to `true` |
 
 ## Usage
 
@@ -91,6 +92,7 @@ When using API key:
 - `bash`
 - `curl`
 - `sha256sum`
+- `actions/cache`
 
 ## License
 

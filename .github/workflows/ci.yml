@@ -68,6 +68,7 @@ jobs:
       - uses: ./
         with:
           api-key: "placeholder"
+          enable-cache: "false"
 
       - name: Show version
         run: quantum-cli -v

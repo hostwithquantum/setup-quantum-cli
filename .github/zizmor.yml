@@ -1,5 +1,5 @@
 rules:
   github-env:
     ignore:
-      - action.yml:107:5
-      - action.yml:124:5
+      - action.yml:111:5
+      - action.yml:135:5
