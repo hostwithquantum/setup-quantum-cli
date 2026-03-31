@@ -20,38 +20,25 @@ A GitHub Action to install and configure [`quantum-cli`](https://cli.planetary-q
 
 ## Inputs
 
-You must provide **either** `api-key` **or** both `username` and `password`. You cannot use both methods together.
+You should provide an `api-key`, but it's optional.
 
-| Input | Description |
-|-------|-------------|
-| `api-key` | Your Quantum API key (recommended) |
-| `username` | Your Quantum username (**deprecated**, use `api-key` instead) |
-| `password` | Your Quantum password (**deprecated**, use `api-key` instead) |
+| Input | Description |  |
+|-------|-------------|----------|
+| `api-key` | Your Quantum API key | optional, adds the key to the environment |
+| `version` | The version | optional, defaults to latest |
+| `enable-cache` | Cache quantum-cli endpoint data between runs | optional, defaults to `true` |
 
 ## Usage
 
 For detailed documentation on the `quantum-cli`, please refer to our [docs](https://docs.planetary-quantum.com/).
 
-### Using API key (recommended)
+### Quickstart
 
 ```yaml
 steps:
-  - uses: hostwithquantum/setup-quantum-cli@v1
+  - uses: hostwithquantum/setup-quantum-cli@v2
     with:
       api-key: ${{ secrets.QUANTUM_API_KEY }}
-  - run: quantum-cli auth status
-```
-
-### Using username/password (deprecated)
-
-> **Warning**: username/password authentication is deprecated. Please migrate to `api-key`.
-
-```yaml
-steps:
-  - uses: hostwithquantum/setup-quantum-cli@v1
-    with:
-      username: ${{ secrets.QUANTUM_USERNAME }}
-      password: ${{ secrets.QUANTUM_PASSWORD }}
   - run: quantum-cli auth status
 ```
 
@@ -69,7 +56,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: hostwithquantum/setup-quantum-cli@v1
+      - uses: hostwithquantum/setup-quantum-cli@v2
         with:
           api-key: ${{ secrets.QUANTUM_API_KEY }}
       - run: quantum-cli auth status
@@ -87,7 +74,7 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: hostwithquantum/setup-quantum-cli@v1
+      - uses: hostwithquantum/setup-quantum-cli@v2
         with:
           api-key: ${{ secrets.QUANTUM_API_KEY }}
       - run: quantum-cli.exe auth status
@@ -100,9 +87,12 @@ The action sets the following environment variables for subsequent steps:
 When using API key:
 - `QUANTUM_API_KEY` — your API key
 
-When using username/password (deprecated):
-- `QUANTUM_USER` — your username
-- `QUANTUM_PASSWORD` — your password
+## Dependencies
+
+- `bash`
+- `curl`
+- `sha256sum`
+- `actions/cache`
 
 ## License
 

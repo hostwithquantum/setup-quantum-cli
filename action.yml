@@ -4,102 +4,133 @@ branding:
   icon: 'zap'
   color: 'red'
 inputs:
-  username:
-    required: false
-    description: Your Quantum username (required if not using api-key)
-  password:
-    required: false
-    description: Your Quantum password (required if not using api-key)
   api-key:
     required: false
     description: Your Quantum API key (alternative to username/password)
+  version:
+    required: false
+    description: Optional version to install
+  enable-cache:
+    required: false
+    default: 'true'
+    description: Enable caching of quantum-cli endpoint data between runs
+  download-url:
+    required: false
+    default: https://cli-v3.planetary-quantum.com
+    description: Optional download URL
 runs:
   using: "composite"
   steps:
-  - name: validate inputs
-    run: |
-      HAS_USERNAME="${{ inputs.username != '' }}"
-      HAS_PASSWORD="${{ inputs.password != '' }}"
-      HAS_API_KEY="${{ inputs.api-key != '' }}"
 
-      if [ "$HAS_API_KEY" = "true" ]; then
-        if [ "$HAS_USERNAME" = "true" ] || [ "$HAS_PASSWORD" = "true" ]; then
-          echo "::error title=Invalid inputs::Cannot use api-key together with username/password. Use either api-key OR username+password."
-          exit 1
-        fi
+  - name: resolve version
+    env:
+      DOWNLOAD_URL: ${{ inputs.download-url }}
+      INPUTS_VERSION: ${{ inputs.version }}
+    id: get_version
+    run: |
+      if [ -n "${INPUTS_VERSION}" ]; then
+        echo "cli-version=${INPUTS_VERSION}" >> $GITHUB_OUTPUT
       else
-        if [ "$HAS_USERNAME" != "true" ] || [ "$HAS_PASSWORD" != "true" ]; then
-          echo "::error title=Missing credentials::Must provide either api-key OR both username and password."
-          exit 1
-        fi
+        LATEST=$(curl -s "${DOWNLOAD_URL}/latest.txt")
+        echo "cli-version=$LATEST" >> $GITHUB_OUTPUT
       fi
     shell: bash
-  - name: deprecation warning (username/password)
-    if: inputs.api-key == ''
-    run: echo "::warning title=Deprecated::username/password authentication is deprecated. Please migrate to api-key."
+
+  - run: echo "Installing ${STEPS_GET_VERSION_OUTPUTS_CLI_VERSION}" >> $GITHUB_STEP_SUMMARY
     shell: bash
-  - name: install quantum-cli (Linux)
-    if: runner.os == 'Linux'
+    env:
+      STEPS_GET_VERSION_OUTPUTS_CLI_VERSION: ${{ steps.get_version.outputs.cli-version }}
+
+  - name: resolve binary
+    env:
+      RUNNER_OS: ${{ runner.os }}
+    id: cli
     run: |
       if [ "${{ runner.arch }}" = "ARM64" ]; then
         ARCH="arm64"
       else
         ARCH="amd64"
       fi
-      curl \
-        -H 'Cache-Control: no-cache' \
-        "https://cli.planetary-quantum.com/quantum-cli-linux-${ARCH}?v=$RANDOM" \
-        -o ${{ github.action_path }}/quantum-cli \
-        && chmod +x ${{ github.action_path }}/quantum-cli
+      case "${RUNNER_OS}" in
+        Linux)  echo "bin=quantum-cli-linux-${ARCH}" >> $GITHUB_OUTPUT ;;
+        macOS)  echo "bin=quantum-cli-darwin-${ARCH}" >> $GITHUB_OUTPUT ;;
+        Windows) echo "bin=quantum-cli-windows-${ARCH}.exe" >> $GITHUB_OUTPUT ;;
+      esac
     shell: bash
-  - name: install quantum-cli (macOS)
-    if: runner.os == 'macOS'
+
+  - name: download checksums
+    env:
+      DOWNLOAD_URL: ${{ inputs.download-url }}
+      CLI_VERSION: ${{ steps.get_version.outputs.cli-version }}
+      ACTION_PATH: ${{ github.action_path }}
     run: |
-      if [ "${{ runner.arch }}" = "ARM64" ]; then
-        ARCH="arm64"
-      else
-        ARCH="amd64"
-      fi
-      curl \
-        -H 'Cache-Control: no-cache' \
-        "https://cli.planetary-quantum.com/quantum-cli-darwin-${ARCH}?v=$RANDOM" \
-        -o ${{ github.action_path }}/quantum-cli \
-        && chmod +x ${{ github.action_path }}/quantum-cli
+      curl -s "${DOWNLOAD_URL}/${CLI_VERSION}/checksums.txt" \
+        -o "${ACTION_PATH}/checksums.txt"
     shell: bash
+
+  - name: download quantum-cli
+    env:
+      DOWNLOAD_URL: ${{ inputs.download-url }}
+      CLI_VERSION: ${{ steps.get_version.outputs.cli-version }}
+      CLI_BIN: ${{ steps.cli.outputs.bin }}
+      ACTION_PATH: ${{ github.action_path }}
+    run: |
+      curl -s "${DOWNLOAD_URL}/${CLI_VERSION}/${CLI_BIN}" \
+        -o "${ACTION_PATH}/${CLI_BIN}"
+    shell: bash
+
+  - name: verify checksum
+    env:
+      CLI_BIN: ${{ steps.cli.outputs.bin }}
+      ACTION_PATH: ${{ github.action_path }}
+    run: |
+      cd "${ACTION_PATH}"
+      grep "${CLI_BIN}" checksums.txt | sha256sum -c -
+      echo "Checksum verified 🛡️" >> $GITHUB_STEP_SUMMARY
+    shell: bash
+
+  - name: install quantum-cli (Linux/macOS)
+    if: runner.os != 'Windows'
+    env:
+      CLI_BIN: ${{ steps.cli.outputs.bin }}
+      ACTION_PATH: ${{ github.action_path }}
+    run: install -m 755 "${ACTION_PATH}/${CLI_BIN}" "${ACTION_PATH}/quantum-cli"
+    shell: bash
+
   - name: install quantum-cli (Windows)
     if: runner.os == 'Windows'
-    run: |
-      if ("${{ runner.arch }}" -eq "ARM64") {
-        $arch = "arm64"
-      } else {
-        $arch = "amd64"
-      }
-      $url = "https://cli.planetary-quantum.com/quantum-cli-windows-${arch}.exe?v=$(Get-Random)"
-      Invoke-WebRequest -Uri $url -OutFile "${{ github.action_path }}\quantum-cli.exe"
-    shell: pwsh
-  - name: add to PATH (Linux/macOS)
-    if: runner.os != 'Windows'
-    run: echo "${{ github.action_path }}" >> $GITHUB_PATH
+    env:
+      CLI_BIN: ${{ steps.cli.outputs.bin }}
+      ACTION_PATH: ${{ github.action_path }}
+    run: install -m 755 "${ACTION_PATH}/${CLI_BIN}" "${ACTION_PATH}/quantum-cli.exe"
     shell: bash
-  - name: add to PATH (Windows)
-    if: runner.os == 'Windows'
-    run: echo "${{ github.action_path }}" | Out-File -FilePath $env:GITHUB_PATH -Append
-    shell: pwsh
+
+  - name: add to path
+    env:
+      ACTION_PATH: ${{ github.action_path }}
+    run: echo "${ACTION_PATH}" >> $GITHUB_PATH
+    shell: bash
+
   - name: verify installation (Linux/macOS)
     if: runner.os != 'Windows'
     run: quantum-cli -v
     shell: bash
+
   - name: verify installation (Windows)
     if: runner.os == 'Windows'
     run: quantum-cli.exe -v
     shell: pwsh
-  - name: set credentials (username/password)
-    if: inputs.api-key == ''
-    run: |
-      echo "QUANTUM_USER=${{ inputs.username }}" >> "$GITHUB_ENV"
-      echo "QUANTUM_PASSWORD=${{ inputs.password }}" >> "$GITHUB_ENV"
-    shell: bash
+
+  - name: quantum endpoint cache
+    if: inputs.enable-cache == 'true'
+    uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+    with:
+      path: ~/.cache/quantum
+      key: quantum-cache-${{ runner.os }}-${{ runner.arch }}
+
   - name: set credentials (api-key)
+    env:
+      API_KEY: ${{ inputs.api-key }}
     if: inputs.api-key != ''
-    run: echo "QUANTUM_API_KEY=${{ inputs.api-key }}" >> "$GITHUB_ENV"
+    run: echo "QUANTUM_API_KEY=${API_KEY}" >> "$GITHUB_ENV"
     shell: bash
